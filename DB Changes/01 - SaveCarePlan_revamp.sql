@@ -631,7 +631,9 @@ END
   ,updated_date  
   ,updated_by  
   ,agency_id
-  ,cg_note_id)  
+  ,cg_note_id
+  ,is_resolved_here
+  )  
   VALUES(  
    @pbm_problem_template_id  
   ,@pbm_bodysystem_id  
@@ -654,7 +656,8 @@ END
   ,GETDATE()  
   ,@user_id  
   ,@agencyId
-  ,@cg_note_id
+  ,@cg_note_id,
+  CASE WHEN @pbm_problem_status = 'resolved' THEN 1 ELSE NULL END
   )  
   
   SET @new_problem_id = SCOPE_IDENTITY();
@@ -1049,7 +1052,8 @@ END
   ,related_to_hhc_diag = @pbm_related_to_hhc_diag  
   ,severity_of_care_problem = @pbm_severity_of_care_problem  
   ,updated_date = GETDATE()  
-  ,updated_by = @user_id
+  ,updated_by = @user_id,
+  is_resolved_here = CASE WHEN @pbm_problem_status = 'resolved' THEN 1 ELSE NULL END
   WHERE problem_id = @pbm_problem_id
   
 
@@ -1876,7 +1880,9 @@ END
   ,updated_date  
   ,updated_by  
   ,agency_id
-  ,cg_note_id)  
+  ,cg_note_id,
+  is_resolved_here
+  )  
   VALUES(  
    @cg_caregoal_template_id  
   ,@cg_problem_id  
@@ -1901,7 +1907,9 @@ END
   ,GETDATE()  
   ,@user_id  
   ,@agencyId
-  ,@cg_note_id)  
+  ,@cg_note_id,
+  CASE WHEN ISNULL(@cg_resolution_date,'') NOT IN ('','0001-01-01') THEN 1 ELSE NULL
+  )  
     
   SET @new_caregoal_id = SCOPE_IDENTITY();
   SET @cg_addtoall_source_id = @new_caregoal_id;  
@@ -2364,7 +2372,8 @@ END
   ,resolution_date = @cg_resolution_date  
   ,comment = @cg_comment  
   ,updated_date = GETDATE()  
-  ,updated_by = @user_id  
+  ,updated_by = @user_id,
+	is_resolved_here = CASE WHEN ISNULL(@cg_resolution_date,'') NOT IN ('','0001-01-01') THEN 1 ELSE NULL  
   WHERE goal_id = @cg_goal_id
   
   --BEGIN Mark A. 05/13/2024 Enhancement
@@ -3159,7 +3168,8 @@ BEGIN
   ,updated_date  
   ,updated_by  
   ,agency_id
-  ,cg_note_id
+  ,cg_note_id,
+  is_resolved_here
   )  
   VALUES(  
    @in_intervention_template_id  
@@ -3186,7 +3196,9 @@ BEGIN
   ,GETDATE()  
   ,@user_id  
   ,@agencyId
-  ,@cg_note_id)  
+  ,@cg_note_id,
+  CASE WHEN (ISNULL(@in_resolved_by, -1) NOT IN (0, -1) AND ISNULL(@in_resolved_date, '') NOT IN ('','0001-01-01')) THEN 1 ELSE NULL END
+  )  
   
   SET @new_intervention_id = SCOPE_IDENTITY();
   SET @in_addtoall_source_id = @new_intervention_id;  
@@ -3600,7 +3612,8 @@ BEGIN
   ,resolved_by  = @in_resolved_by  
   ,resolved_date  = @in_resolved_date  
   ,updated_date = GETDATE()  
-  ,updated_by = @user_id  
+  ,updated_by = @user_id,
+  is_resolved_here = CASE WHEN (ISNULL(@in_resolved_by, -1) NOT IN (0, -1) AND ISNULL(@in_resolved_date, '') NOT IN ('','0001-01-01')) THEN 1 ELSE NULL END  
   WHERE intervention_id = @in_intervention_id
   
   --BEGIN Mark A. 05/13/2024 Enhancement

@@ -1,0 +1,1 @@
+* NTD - Existing resolved problem, goal or intervention is not affected
