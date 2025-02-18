@@ -1908,7 +1908,7 @@ END
   ,@user_id  
   ,@agencyId
   ,@cg_note_id,
-  CASE WHEN ISNULL(@cg_resolution_date,'') NOT IN ('','0001-01-01') THEN 1 ELSE NULL
+  CASE WHEN ISNULL(@cg_resolution_date,'') NOT IN ('','0001-01-01') THEN 1 ELSE NULL END
   )  
     
   SET @new_caregoal_id = SCOPE_IDENTITY();
@@ -2373,7 +2373,7 @@ END
   ,comment = @cg_comment  
   ,updated_date = GETDATE()  
   ,updated_by = @user_id,
-	is_resolved_here = CASE WHEN ISNULL(@cg_resolution_date,'') NOT IN ('','0001-01-01') THEN 1 ELSE NULL  
+	is_resolved_here = CASE WHEN ISNULL(@cg_resolution_date,'') NOT IN ('','0001-01-01') THEN 1 ELSE NULL END  
   WHERE goal_id = @cg_goal_id
   
   --BEGIN Mark A. 05/13/2024 Enhancement
