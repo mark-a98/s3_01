@@ -1,6 +1,6 @@
 GO
 
-/****** Object:  StoredProcedure [dbo].[SaveCarePlan_revamp]    Script Date: 2/17/2025 12:09:40 PM ******/
+/****** Object:  StoredProcedure [dbo].[SaveCarePlan_revamp]    Script Date: 1/24/2025 12:34:01 PM ******/
 SET ANSI_NULLS ON
 GO
 
@@ -74,6 +74,7 @@ BEGIN
  ,@pbm_add_option INT
  ,@pbm_edit_option INT
  ,@compound_edit_option INT
+ ,@pbm_delete_option INT
   
  ,@cg_Action VARCHAR(100)  
  ,@cg_goal_id BIGINT  
@@ -94,6 +95,7 @@ BEGIN
  ,@cg_poc_id BIGINT
  ,@cg_add_option INT
  ,@cg_edit_option INT
+ ,@cg_delete_option INT
   
  ,@in_Action VARCHAR(100)  
  ,@in_intervention_id BIGINT  
@@ -115,6 +117,7 @@ BEGIN
  ,@in_poc_id BIGINT
  ,@in_add_option INT
  ,@in_edit_option INT
+ ,@in_delete_option INT
   
  ,@com_Action VARCHAR(100)  
  ,@com_comment_id BIGINT  
@@ -140,6 +143,9 @@ BEGIN
  ,@gcom_pto_id BIGINT  
  ,@gcom_oasis_id BIGINT  
  ,@gcom_poc_id BIGINT
+ 
+ ,@u_sub_problem_id BIGINT
+ ,@u_sub_goal_id BIGINT
   
  DECLARE @ProblemTempTable TABLE (  
  [Action] VARCHAR(100)  
@@ -159,6 +165,7 @@ BEGIN
  ,poc_id BIGINT
  ,add_option INT
  ,edit_option INT
+ ,delete_option INT
  )  
   
  DECLARE @CareGoalTempTable TABLE (  
@@ -181,6 +188,7 @@ BEGIN
  ,poc_id BIGINT
  ,add_option INT
  ,edit_option INT
+ ,delete_option INT
  )  
   
  DECLARE @InterventionTempTable TABLE (  
@@ -204,6 +212,7 @@ BEGIN
  ,poc_id BIGINT
  ,add_option INT
  ,edit_option INT
+ ,delete_option INT
  )  
   
  DECLARE @InterventionCommentTempTable TABLE (  
@@ -252,7 +261,8 @@ BEGIN
  Tbl.Col.value('oasis_id[1]', 'BIGINT') AS oasis_id,   
  Tbl.Col.value('poc_id[1]', 'BIGINT') AS poc_id,
  Tbl.Col.value('add_option[1]','INT') AS add_option,
- Tbl.Col.value('edit_option[1]','INT') AS edit_option
+ Tbl.Col.value('edit_option[1]','INT') AS edit_option,
+ Tbl.Col.value('delete_option[1]','INT') AS delete_option
  FROM @problem_list.nodes('/Problem/problem') Tbl(Col)  
   
  INSERT INTO @CareGoalTempTable  
@@ -275,7 +285,8 @@ BEGIN
  Tbl.Col.value('oasis_id[1]', 'BIGINT') AS oasis_id,   
  Tbl.Col.value('poc_id[1]', 'BIGINT') AS poc_id,
  Tbl.Col.value('add_option[1]','INT') AS add_option,
- Tbl.Col.value('edit_option[1]','INT') AS edit_option
+ Tbl.Col.value('edit_option[1]','INT') AS edit_option,
+ Tbl.Col.value('delete_option[1]','INT') AS delete_option
  FROM @caregoal_list.nodes('/CareGoal/caregoal') Tbl(Col)  
   
  INSERT INTO @InterventionTempTable  
@@ -299,7 +310,8 @@ BEGIN
  Tbl.Col.value('oasis_id[1]', 'BIGINT') AS oasis_id,  
  Tbl.Col.value('poc_id[1]', 'BIGINT') AS poc_id,
  Tbl.Col.value('add_option[1]', 'INT') AS add_option,
- Tbl.Col.value('edit_option[1]', 'INT') AS edit_option
+ Tbl.Col.value('edit_option[1]', 'INT') AS edit_option,
+ Tbl.Col.value('delete_option[1]', 'INT') AS delete_option
  FROM @intervention_list.nodes('/Intervention/intervention') Tbl(Col)  
   
  INSERT INTO @InterventionCommentTempTable  
@@ -451,12 +463,14 @@ END
 	intervention_group_id BIGINT,
 	intervention_source VARCHAR(100),
 	intervention_template_id BIGINT,
-	goal_outcome INT
+	goal_outcome INT,
+	resolved_by nvarchar(200),
+	resolved_date date
  )
 
  INSERT INTO @ExistingTempProblem (problem_id, problem_group_id, problem_source, problem_template_id, bodysystem_id, problem_status) SELECT problem_id, problem_group_id, problem_source, problem_template_id, bodysystem_id, problem_status FROM CarePlan_Problem WHERE COALESCE(is_deleted, 0) = 0 AND episode_id = @episode_id
  INSERT INTO @ExistingTempGoal (problem_id, goal_id, goal_group_id, goal_source, caregoal_template_id, resolution_date) SELECT problem_id, goal_id, goal_group_id, goal_source, caregoal_template_id, resolution_date FROM CarePlan_Goal WHERE COALESCE(is_deleted,0) = 0 AND episode_id = @episode_id
- INSERT INTO @ExistingInterventionTempTable (goal_id, intervention_group_id, intervention_source, intervention_template_id, goal_outcome) SELECT goal_id, intervention_group_id, intervention_source, intervention_template_id, goal_outcome FROM CarePlan_Intervention WHERE COALESCE(is_deleted,0) = 0 AND episode_id = @episode_id
+ INSERT INTO @ExistingInterventionTempTable (goal_id, intervention_group_id, intervention_source, intervention_template_id, goal_outcome, resolved_by, resolved_date) SELECT goal_id, intervention_group_id, intervention_source, intervention_template_id, goal_outcome, resolved_by, resolved_date FROM CarePlan_Intervention WHERE COALESCE(is_deleted,0) = 0 AND episode_id = @episode_id
 
 
  --CARE PLAN DOCUMENTS  MARK A. 10/09/2024
@@ -545,6 +559,7 @@ END
  ,poc_id
  ,add_option
  ,edit_option
+ ,delete_option
  FROM @ProblemTempTable  
   
  OPEN ProblemCursor  
@@ -568,6 +583,7 @@ END
  ,@pbm_poc_id
  ,@pbm_add_option
  ,@pbm_edit_option
+ ,@pbm_delete_option
   
  DECLARE @PTOType VARCHAR(100),  
  @current_pto_call_date DATETIME  
@@ -1282,15 +1298,12 @@ END
 		FETCH NEXT FROM U_Document_Cursor INTO @u_doc_date, @u_doc_type, @u_key
 		WHILE @@FETCH_STATUS = 0
 		BEGIN
-		
-		  UPDATE CarePlan_Problem SET  
-		  problem_status = CASE WHEN problem_status = 'resolved' THEN 'resolved' ELSE @pbm_problem_status END,  
-		  related_to_hhc_diag = @pbm_related_to_hhc_diag,  
-		  severity_of_care_problem = @pbm_severity_of_care_problem,
-		  updated_date = GETDATE(),  
-		  updated_by = @user_id
-		  WHERE problem_group_id = @pbm_problem_group_id
-		  AND (
+		  
+			SET @u_sub_problem_id = null
+			SELECT @u_sub_problem_id = problem_id FROM CarePlan_Problem
+			WHERE 
+			ISNULL(is_deleted, 0) = 0 AND problem_group_id = @pbm_problem_group_id
+			AND (
 			(@u_doc_type = 'PTO' AND pto_id = @u_key AND page_source = 'PTO')
 			OR
 			(@u_doc_type = 'POC' AND poc_id = @u_key AND page_source = 'POC')
@@ -1300,8 +1313,43 @@ END
 			(@u_doc_type = 'TCN' AND tcn_id = @u_key AND page_source = 'TCN')
 			OR
 			(@u_doc_type IN ('VisitPlan-TCN','VisitPlan-PTO') AND cg_note_id = @u_key AND page_source IN ('VisitPlan-TCN','VisitPlan-PTO'))
+
+			)
+
+			UPDATE CarePlan_Problem SET  
+			problem_status = CASE WHEN problem_status = 'resolved' THEN 'resolved' ELSE @pbm_problem_status END,  
+			related_to_hhc_diag = @pbm_related_to_hhc_diag,  
+			severity_of_care_problem = @pbm_severity_of_care_problem,
+			updated_date = GETDATE(),  
+			updated_by = @user_id
+			WHERE problem_id = @u_sub_problem_id
 			
-		  )
+			IF(ISNULL(@pbm_problem_status, '') = 'resolved')
+			BEGIN
+				
+				UPDATE cg 
+				SET cg.resolution_date = @current_document_date 
+				FROM Careplan_Goal cg 
+				WHERE 
+				cg.problem_id =  @u_sub_problem_id AND ISNULL(cg.is_deleted,0) = 0
+				AND cg.goal_group_id NOT IN (SELECT cgt.goal_group_id FROM @CareGoalTempTable cgt WHERE ISNULL(cgt.[action], '') <> 'Delete')
+			
+				
+				UPDATE intvn
+				SET 
+				intvn.resolved_by = intvn.initiated_by,
+				intvn.resolved_date = @current_document_date
+				FROM
+				CarePlan_Intervention intvn 
+				JOIN CarePlan_Goal cg ON cg.goal_id = intvn.goal_id AND ISNULL(intvn.is_deleted,0) = 0
+				JOIN CarePlan_Problem cp ON cp.problem_id = cg.problem_id AND ISNULL(cg.is_deleted,0) = 0
+				
+				WHERE cg.problem_id = @u_sub_problem_id AND ISNULL(cp.is_deleted, 0) = 0
+			
+			END
+		  
+		  
+		  
 		
 			FETCH NEXT FROM U_Document_Cursor INTO @u_doc_date, @u_doc_type, @u_key
 		END
@@ -1473,7 +1521,84 @@ END
 		problem_id IN (SELECT problem_id FROM Careplan_problem WHERE problem_id = @pbm_problem_id AND page_source IN('POC'))  
 		AND page_source IN('POC'))  
 		AND page_source IN('POC')  
-	END  
+	END
+
+
+	IF @pbm_delete_option = 1 AND ISNULL(@page_source,'') <> 'POC'
+	BEGIN
+		SELECT @current_document_date = NULL, @current_document_key = NULL, @existing_problem_group_id = NULL, @existing_problem_id = NULL
+		
+		IF @page_source = 'PTO'
+		BEGIN
+			SELECT @current_document_date = call_date +  CAST(call_time AS TIME) FROM PTO WHERE episode_id = @episode_id AND COALESCE(isDeleted,0) = 0 AND pto_id = @pto_id
+			SELECT @current_document_key = @pto_id
+		END
+
+		IF @page_source = 'OASIS'
+		BEGIN
+			SELECT  @current_document_date = CASE WHEN o.m0100_assmt_reason = '01' THEN CAST(o.m0030_start_care_dt AS DATE) WHEN o.m0100_assmt_reason = '03' THEN CAST(o.m0032_roc_dt AS DATE) ELSE CAST(pto.call_date AS DATE) END FROM Oasis o JOIN PTO pto ON pto.pto_id = o.pto_id   WHERE o.episode_id = @episode_id AND COALESCE(o.isdeleted,0) = 0 AND o.m0100_assmt_reason IN('01','03','04') AND o.OasisID = @oasis_id
+			SELECT @current_document_key = @oasis_id
+		END
+
+		IF @page_source = 'TCN'
+		BEGIN
+			SELECT @current_document_date = call_date +  CAST(call_time AS TIME) FROM TelCommunicationNote WHERE episode_id = @episode_id AND COALESCE(isDeleted,0) = 0 AND tcn_id = @tcn_id
+			SELECT @current_document_key = @tcn_id
+		END
+
+		IF @page_source IN ('VisitPlan-TCN','VisitPlan-PTO')
+		BEGIN
+			SELECT @current_document_date = COALESCE(v.Actual_Visit_Date, vp.Scheduled_Visit_Date) FROM CaregiverNote cgn LEFT JOIN Visits v ON v.Visit_Id = cgn.visit_id LEFT JOIN VisitPlan vp ON vp.visit_plan_id = cgn.visit_plan_id  WHERE COALESCE(cgn.is_deleted,0) = 0 AND cgn.cg_note_id = @cg_note_id
+			SELECT @current_document_key = @cg_note_id
+		END
+
+		DECLARE U_Document_Cursor CURSOR FOR SELECT * FROM @CarePlanDocumentsForUpdates 
+		WHERE
+		(
+		(@page_source = doc_type AND @current_document_key != [key])
+		OR
+		(@page_source != doc_type AND @current_document_key = [key])
+		OR
+		(@page_source != doc_type AND @current_document_key != [key])
+		)
+
+		AND doc_date >= @current_document_date
+
+
+		OPEN U_Document_Cursor
+		FETCH NEXT FROM U_Document_Cursor INTO @u_doc_date, @u_doc_type, @u_key
+		WHILE @@FETCH_STATUS = 0
+		BEGIN
+		
+			UPDATE CarePlan_Problem SET  
+			is_deleted = 1,  
+			updated_date = GETDATE(),  
+			updated_by = @user_id 
+			WHERE problem_group_id = @pbm_problem_group_id
+			AND (
+				(@u_doc_type = 'PTO' AND pto_id = @u_key AND page_source = 'PTO')
+				OR
+				(@u_doc_type = 'POC' AND poc_id = @u_key AND page_source = 'POC')
+				OR
+				(@u_doc_type = 'OASIS' AND oasis_id = @u_key AND page_source = 'OASIS')
+				OR
+				(@u_doc_type = 'TCN' AND tcn_id = @u_key AND page_source = 'TCN')
+				OR
+				(@u_doc_type IN ('VisitPlan-TCN','VisitPlan-PTO') AND cg_note_id = @u_key AND page_source IN ('VisitPlan-TCN','VisitPlan-PTO'))
+
+			)
+		
+			FETCH NEXT FROM U_Document_Cursor INTO @u_doc_date, @u_doc_type, @u_key
+		END
+		
+		CLOSE U_Document_Cursor
+		DEALLOCATE U_Document_Cursor		
+		
+
+		
+	END
+
+	
   
  END 
  
@@ -1649,6 +1774,7 @@ END
  ,@pbm_poc_id
  ,@pbm_add_option
  ,@pbm_edit_option
+ ,@pbm_delete_option
   
  END  
   
@@ -1678,6 +1804,7 @@ END
  ,poc_id
  ,add_option
  ,edit_option
+ ,delete_option
  FROM @CareGoalTempTable  
   
  OPEN CareGoalCursor  
@@ -1703,6 +1830,7 @@ END
  ,@cg_poc_id
  ,@cg_add_option
  ,@cg_edit_option
+ ,@cg_delete_option
   
  WHILE @@FETCH_STATUS = 0    
  BEGIN   
@@ -2506,17 +2634,11 @@ END
 		FETCH NEXT FROM U_Document_Cursor INTO @u_doc_date, @u_doc_type, @u_key
 		WHILE @@FETCH_STATUS = 0
 		BEGIN
-
-			UPDATE CarePlan_Goal SET  
-			goal_status = @cg_goal_status,  
-			goal_desc = @cg_goal_desc,  
-			target_date = @cg_target_date,  
-			goal_setfor = @cg_goal_setfor,  
-			resolution_date = CASE WHEN ISNULL(resolution_date,'') NOT IN ('','0001-01-01') THEN resolution_date ELSE @cg_resolution_date END,  
-			comment = @cg_comment,  
-			updated_date = GETDATE(),  
-			updated_by = @user_id
-			WHERE goal_group_id = @cg_goal_group_id
+		
+			SET @u_sub_goal_id = null
+			SELECT @u_sub_goal_id = goal_id FROM CarePlan_Goal
+			WHERE 
+			ISNULL(is_deleted,0) = 0 AND goal_group_id = @cg_goal_group_id
 			AND (
 				(@u_doc_type = 'PTO' AND pto_id = @u_key AND page_source = 'PTO')
 				OR
@@ -2529,6 +2651,28 @@ END
 				(@u_doc_type IN ('VisitPlan-TCN','VisitPlan-PTO') AND cg_note_id = @u_key AND page_source IN ('VisitPlan-TCN','VisitPlan-PTO'))
 
 			)
+
+			UPDATE CarePlan_Goal SET  
+			goal_status = @cg_goal_status,  
+			goal_desc = @cg_goal_desc,  
+			target_date = @cg_target_date,  
+			goal_setfor = @cg_goal_setfor,  
+			resolution_date = CASE WHEN ISNULL(resolution_date,'') NOT IN ('','0001-01-01') THEN resolution_date ELSE @cg_resolution_date END,  
+			comment = @cg_comment,  
+			updated_date = GETDATE(),  
+			updated_by = @user_id
+			WHERE goal_id = @u_sub_goal_id
+			
+			IF (ISNULL(@cg_resolution_date,'') NOT IN ('','0001-01-01'))
+			BEGIN
+				UPDATE intv
+				SET intv.resolved_by = intv.initiated_by,
+				intv.resolved_date = @current_document_date
+				FROM
+				CarePlan_Intervention intv
+				WHERE intv.goal_id = @u_sub_goal_id AND ISNULL(intv.is_deleted, 0) = 0
+				
+			END
 			
 		
 			FETCH NEXT FROM U_Document_Cursor INTO @u_doc_date, @u_doc_type, @u_key
@@ -2632,6 +2776,87 @@ END
      ,updated_by = @user_id  
      WHERE goal_id IN(SELECT goal_id FROM CarePlan_Goal WHERE goal_id = @cg_goal_id AND page_source IN('POC'))  
   END
+  
+  
+  
+	IF @cg_delete_option = 1 AND ISNULL(@page_source,'') <> 'POC'
+	BEGIN
+		SELECT @current_document_date = NULL, @current_document_key = NULL, @existing_problem_group_id = NULL, @existing_problem_id = NULL
+	
+		IF @page_source = 'PTO'
+		BEGIN
+			SELECT @current_document_date = call_date +  CAST(call_time AS TIME) FROM PTO WHERE episode_id = @episode_id AND COALESCE(isDeleted,0) = 0 AND pto_id = @pto_id
+			SELECT @current_document_key = @pto_id
+		END
+		
+		IF @page_source = 'OASIS'
+		BEGIN
+			SELECT  @current_document_date = CASE WHEN o.m0100_assmt_reason = '01' THEN CAST(o.m0030_start_care_dt AS DATE) WHEN o.m0100_assmt_reason = '03' THEN CAST(o.m0032_roc_dt AS DATE) ELSE CAST(pto.call_date AS DATE) END FROM Oasis o JOIN PTO pto ON pto.pto_id = o.pto_id   WHERE o.episode_id = @episode_id AND COALESCE(o.isdeleted,0) = 0 AND o.m0100_assmt_reason IN('01','03','04') AND o.OasisID = @oasis_id
+			SELECT @current_document_key = @oasis_id
+		END
+		
+		
+		IF @page_source = 'TCN'
+		BEGIN
+			SELECT @current_document_date = call_date +  CAST(call_time AS TIME) FROM TelCommunicationNote WHERE episode_id = @episode_id AND COALESCE(isDeleted,0) = 0 AND tcn_id = @tcn_id
+			SELECT @current_document_key = @tcn_id
+		END
+		
+		IF @page_source  IN ('VisitPlan-TCN','VisitPlan-PTO')
+		BEGIN
+			SELECT @current_document_date = COALESCE(v.Actual_Visit_Date, vp.Scheduled_Visit_Date) FROM CaregiverNote cgn LEFT JOIN Visits v ON v.Visit_Id = cgn.visit_id LEFT JOIN VisitPlan vp ON vp.visit_plan_id = cgn.visit_plan_id  WHERE COALESCE(cgn.is_deleted,0) = 0 AND cgn.cg_note_id = @cg_note_id
+			SELECT @current_document_key = @cg_note_id
+		END
+		
+		
+		DECLARE U_Document_Cursor CURSOR FOR SELECT * FROM @CarePlanDocumentsForUpdates 
+		WHERE
+		(
+			(@page_source = doc_type AND @current_document_key != [key])
+			OR
+			(@page_source != doc_type AND @current_document_key = [key])
+			OR
+			(@page_source != doc_type AND @current_document_key != [key])
+		)
+
+
+		AND doc_date >= @current_document_date
+		OPEN U_Document_Cursor
+		FETCH NEXT FROM U_Document_Cursor INTO @u_doc_date, @u_doc_type, @u_key
+		WHILE @@FETCH_STATUS = 0
+		BEGIN
+
+			UPDATE CarePlan_Goal SET  
+			is_deleted = 1,  
+			updated_date = GETDATE(),  
+			updated_by = @user_id
+			WHERE goal_group_id = @cg_goal_group_id
+			AND (
+				(@u_doc_type = 'PTO' AND pto_id = @u_key AND page_source = 'PTO')
+				OR
+				(@u_doc_type = 'POC' AND poc_id = @u_key AND page_source = 'POC')
+				OR
+				(@u_doc_type = 'OASIS' AND oasis_id = @u_key AND page_source = 'OASIS')
+				OR
+				(@u_doc_type = 'TCN' AND tcn_id = @u_key AND page_source = 'TCN')
+				OR
+				(@u_doc_type IN ('VisitPlan-TCN','VisitPlan-PTO') AND cg_note_id = @u_key AND page_source IN ('VisitPlan-TCN','VisitPlan-PTO'))
+
+			)
+			
+		
+			FETCH NEXT FROM U_Document_Cursor INTO @u_doc_date, @u_doc_type, @u_key
+			
+		END
+		CLOSE U_Document_Cursor
+		DEALLOCATE U_Document_Cursor	
+	END
+  
+  
+  
+  
+  
+  
  END
  
    --BEGIN Mark A. 05/13/2024 Enhancement
@@ -2829,6 +3054,7 @@ BEGIN
  ,@cg_poc_id
  ,@cg_add_option
  ,@cg_edit_option
+ ,@cg_delete_option
   
  END  
   
@@ -2858,7 +3084,8 @@ BEGIN
  oasis_id,  
  poc_id,
  add_option,
- edit_option
+ edit_option,
+ delete_option
  FROM @InterventionTempTable  
   
  OPEN InterventionCursor  
@@ -2884,7 +3111,8 @@ BEGIN
  @in_oasis_id,  
  @in_poc_id,
  @in_add_option,
- @in_edit_option
+ @in_edit_option,
+ @in_delete_option
   
  WHILE @@FETCH_STATUS = 0    
  BEGIN   
@@ -2901,7 +3129,7 @@ BEGIN
 	SET @in_existing_intervention_group_id = NULL
 	SET @in_existing_intervention_source = NULL
 	SET @in_addtoall_source_id = NULL
-	SELECT TOP 1 @in_existing_intervention_group_id  = ci.intervention_group_id, @in_existing_intervention_source = intervention_source FROM @ExistingInterventionTempTable ci JOIN @ExistingTempGoal cg ON cg.goal_id = ci.goal_id WHERE ci.intervention_template_id = @in_intervention_template_id AND ci.intervention_group_id NOT IN (SELECT _ci.intervention_group_id FROM @ExistingInterventionTempTable _ci WHERE _ci.intervention_group_id = ci.intervention_group_id AND ISNULL(_ci.goal_outcome,0) = 1) AND cg.caregoal_template_id = (SELECT _cg.caregoal_template_id FROM CarePlan_Goal _cg WHERE COALESCE(_cg.is_deleted,0) = 0 AND _cg.goal_id = @in_goal_id) AND cg.goal_group_id = (SELECT _cg.goal_group_id FROM CarePlan_Goal _cg WHERE COALESCE(is_deleted,0) = 0 AND _cg.goal_id = @in_goal_id)
+	SELECT TOP 1 @in_existing_intervention_group_id  = ci.intervention_group_id, @in_existing_intervention_source = intervention_source FROM @ExistingInterventionTempTable ci JOIN @ExistingTempGoal cg ON cg.goal_id = ci.goal_id WHERE ci.intervention_template_id = @in_intervention_template_id AND ci.intervention_group_id NOT IN (SELECT _ci.intervention_group_id FROM @ExistingInterventionTempTable _ci WHERE _ci.intervention_group_id = ci.intervention_group_id AND (ISNULL(_ci.resolved_by, -1) NOT IN (0, -1) AND ISNULL(_ci.resolved_date, '') NOT IN ('','0001-01-01'))) AND cg.caregoal_template_id = (SELECT _cg.caregoal_template_id FROM CarePlan_Goal _cg WHERE COALESCE(_cg.is_deleted,0) = 0 AND _cg.goal_id = @in_goal_id) AND cg.goal_group_id = (SELECT _cg.goal_group_id FROM CarePlan_Goal _cg WHERE COALESCE(is_deleted,0) = 0 AND _cg.goal_id = @in_goal_id)
 
 
     
@@ -3257,7 +3485,7 @@ BEGIN
 
 	--Start Mark A. 10/09/2024 Check if the add option is 'Add to all referencing documents', 'Add and replace in all referencing document' or 'Add to this document only'
 
-	IF @in_Action = 'Add' AND @page_source <> 'POC' AND ISNULL(@in_goal_outcome,0) <> 1
+	IF @in_Action = 'Add' AND @page_source <> 'POC' AND NOT (ISNULL(@in_resolved_by, -1) NOT IN (0, -1) AND ISNULL(@in_resolved_date, '') NOT IN ('','0001-01-01'))
 	BEGIN
 		DECLARE @existing_intervention_group_id BIGINT, @existing_intervention_id BIGINT, @existing_intervention_goal_id BIGINT
 
@@ -3309,7 +3537,7 @@ BEGIN
 
 			SELECT @existing_intervention_group_id = NULL, @existing_intervention_id = NULL, @existing_intervention_goal_id = NULL
 
-			SELECT TOP 1 @existing_intervention_group_id = i.intervention_group_id, @existing_intervention_id = i.intervention_id FROM dbo.Func_GetAllCarePlanInterventionByEpisodeId(@episode_id, CASE WHEN @u_doc_type = 'PTO' THEN @u_key ELSE -1 END, CASE WHEN @u_doc_type = 'OASIS' THEN @u_key ELSE -1 END, CASE WHEN @u_doc_type = 'POC' THEN @u_key ELSE -1 END, CASE WHEN @u_doc_type = 'TCN' THEN @u_key ELSE 0 END, @u_doc_type, CASE WHEN @u_doc_type = 'VisitPlan-TCN' THEN @u_key ELSE -1 END) i JOIN CarePlan_Goal cg ON i.goal_id = cg.goal_id  WHERE i.intervention_template_id = @in_intervention_template_id AND ISNULL(i.goal_outcome,0) <> 1  AND cg.goal_group_id = (SELECT _cg.goal_group_id FROM CarePlan_Goal _cg WHERE _cg.episode_id = @episode_id AND COALESCE(_cg.is_deleted,0) = 0 AND _cg.goal_id = @in_goal_id)
+			SELECT TOP 1 @existing_intervention_group_id = i.intervention_group_id, @existing_intervention_id = i.intervention_id FROM dbo.Func_GetAllCarePlanInterventionByEpisodeId(@episode_id, CASE WHEN @u_doc_type = 'PTO' THEN @u_key ELSE -1 END, CASE WHEN @u_doc_type = 'OASIS' THEN @u_key ELSE -1 END, CASE WHEN @u_doc_type = 'POC' THEN @u_key ELSE -1 END, CASE WHEN @u_doc_type = 'TCN' THEN @u_key ELSE 0 END, @u_doc_type, CASE WHEN @u_doc_type = 'VisitPlan-TCN' THEN @u_key ELSE -1 END) i JOIN CarePlan_Goal cg ON i.goal_id = cg.goal_id  WHERE i.intervention_template_id = @in_intervention_template_id AND NOT (ISNULL(i.resolved_by, -1) NOT IN (0, -1) AND ISNULL(i.resolved_date, '') NOT IN ('','0001-01-01'))  AND cg.goal_group_id = (SELECT _cg.goal_group_id FROM CarePlan_Goal _cg WHERE _cg.episode_id = @episode_id AND COALESCE(_cg.is_deleted,0) = 0 AND _cg.goal_id = @in_goal_id)
 			
 			SELECT @existing_intervention_goal_id = goal_id FROM dbo.Func_GetAllCarePlanCareGoalByEpisodeId(@episode_id, CASE WHEN @u_doc_type = 'PTO' THEN @u_key ELSE -1 END, CASE WHEN @u_doc_type = 'OASIS' THEN @u_key ELSE -1 END, CASE WHEN @u_doc_type = 'POC' THEN @u_key ELSE -1 END, CASE WHEN @u_doc_type = 'TCN' THEN @u_key ELSE 0 END, @u_doc_type, CASE WHEN @u_doc_type = 'VisitPlan-TCN' THEN @u_key ELSE -1 END)  WHERE goal_group_id = (SELECT cg.goal_group_id FROM CarePlan_Goal cg WHERE cg.episode_id = @episode_id AND COALESCE(cg.is_deleted,0) = 0 AND cg.goal_id = @in_goal_id)
 			IF COALESCE(@existing_intervention_goal_id,0) <> 0 AND (( @in_add_option = 1 AND COALESCE(@existing_intervention_group_id,0) = 0 ) OR ( @in_add_option = 2 AND COALESCE(@existing_intervention_group_id,0) = 0)) 
@@ -3540,7 +3768,7 @@ BEGIN
 	SET @compound_edit_option = 0
 	SELECT TOP 1 @compound_edit_option = ptt.edit_option FROM @ProblemTempTable ptt JOIN @CareGoalTempTable cgtt ON cgtt.problem_id = ptt.problem_id WHERE cgtt.goal_id = @in_goal_id
 	
-	IF (@compound_edit_option = 1 OR ISNULL(@in_goal_outcome,0) = 1) AND ISNULL(@page_source,'') <> 'POC'
+	IF (@compound_edit_option = 1 OR (ISNULL(@in_resolved_by, -1) NOT IN (0, -1) AND ISNULL(@in_resolved_date, '') NOT IN ('','0001-01-01'))) AND ISNULL(@page_source,'') <> 'POC'
 	BEGIN
 	
 		SELECT @current_document_date = NULL, @current_document_key = NULL, @existing_problem_group_id = NULL, @existing_problem_id = NULL
@@ -3685,7 +3913,90 @@ BEGIN
 		,updated_date = GETDATE()  
 		,updated_by = @user_id  
 		WHERE intervention_id = @in_intervention_id AND page_source IN('POC')  
-		END 
+		END
+		
+		IF @in_delete_option = 1 AND ISNULL(@page_source,'') <> 'POC'
+		BEGIN
+
+			SELECT @current_document_date = NULL, @current_document_key = NULL, @existing_problem_group_id = NULL, @existing_problem_id = NULL
+			
+			IF @page_source = 'PTO'
+			BEGIN
+				SELECT @current_document_date = call_date +  CAST(call_time AS TIME) FROM PTO WHERE episode_id = @episode_id AND COALESCE(isDeleted,0) = 0 AND pto_id = @pto_id
+				SELECT @current_document_key = @pto_id
+			END
+			
+			IF @page_source = 'OASIS'
+			BEGIN
+				SELECT  @current_document_date = CASE WHEN o.m0100_assmt_reason = '01' THEN CAST(o.m0030_start_care_dt AS DATE) WHEN o.m0100_assmt_reason = '03' THEN CAST(o.m0032_roc_dt AS DATE) ELSE CAST(pto.call_date AS DATE) END FROM Oasis o JOIN PTO pto ON pto.pto_id = o.pto_id   WHERE o.episode_id = @episode_id AND COALESCE(o.isdeleted,0) = 0 AND o.m0100_assmt_reason IN('01','03','04') AND o.OasisID = @oasis_id
+				SELECT @current_document_key = @oasis_id
+			END
+			
+			
+			IF @page_source = 'TCN'
+			BEGIN
+				SELECT @current_document_date = call_date +  CAST(call_time AS TIME) FROM TelCommunicationNote WHERE episode_id = @episode_id AND COALESCE(isDeleted,0) = 0 AND tcn_id = @tcn_id
+				SELECT @current_document_key = @tcn_id
+			END
+			
+			IF @page_source  IN ('VisitPlan-TCN','VisitPlan-PTO')
+			BEGIN
+				SELECT @current_document_date = COALESCE(v.Actual_Visit_Date, vp.Scheduled_Visit_Date) FROM CaregiverNote cgn LEFT JOIN Visits v ON v.Visit_Id = cgn.visit_id LEFT JOIN VisitPlan vp ON vp.visit_plan_id = cgn.visit_plan_id  WHERE COALESCE(cgn.is_deleted,0) = 0 AND cgn.cg_note_id = @cg_note_id
+				SELECT @current_document_key = @cg_note_id
+			END
+			
+			
+			
+			DECLARE U_Document_Cursor CURSOR FOR SELECT * FROM @CarePlanDocumentsForUpdates 
+			WHERE
+			(
+				(@page_source = doc_type AND @current_document_key != [key])
+				OR
+				(@page_source != doc_type AND @current_document_key = [key])
+				OR
+				(@page_source != doc_type AND @current_document_key != [key])
+			)
+
+
+			AND doc_date >= @current_document_date
+			OPEN U_Document_Cursor
+			FETCH NEXT FROM U_Document_Cursor INTO @u_doc_date, @u_doc_type, @u_key
+			
+			WHILE @@FETCH_STATUS = 0
+			BEGIN
+			
+				UPDATE CarePlan_Intervention SET  
+				is_deleted = 1,  
+				updated_date = GETDATE(),  
+				updated_by = @user_id   
+				WHERE intervention_group_id = @in_intervention_group_id
+				AND (
+					(@u_doc_type = 'PTO' AND pto_id = @u_key AND page_source = 'PTO')
+					OR
+					(@u_doc_type = 'POC' AND poc_id = @u_key AND page_source = 'POC')
+					OR
+					(@u_doc_type = 'OASIS' AND oasis_id = @u_key AND page_source = 'OASIS')
+					OR
+					(@u_doc_type = 'TCN' AND tcn_id = @u_key AND page_source = 'TCN')
+					OR
+					(@u_doc_type IN ('VisitPlan-TCN','VisitPlan-PTO') AND cg_note_id = @u_key AND page_source IN ('VisitPlan-TCN','VisitPlan-PTO'))
+				)
+				
+			
+				FETCH NEXT FROM U_Document_Cursor INTO @u_doc_date, @u_doc_type, @u_key
+			END
+			CLOSE U_Document_Cursor
+			DEALLOCATE U_Document_Cursor
+
+
+		
+		END
+
+
+		
+
+
+		
   
  END
  
@@ -3826,7 +4137,8 @@ BEGIN
  @in_oasis_id,  
  @in_poc_id,
  @in_add_option,
- @in_edit_option
+ @in_edit_option,
+ @in_delete_option
   
  END  
   
