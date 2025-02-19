@@ -1,4 +1,3 @@
-USE [IDOneSourceHomeHealth]
 GO
 
 /****** Object:  StoredProcedure [dbo].[GetCarePlanProfileDetailsForCareplan_revamp]    Script Date: 2/19/2025 9:30:02 AM ******/
