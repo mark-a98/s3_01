@@ -59,7 +59,8 @@ BEGIN
 	,page_source VARCHAR(50)
 	,related_to_hhc_diag INT
 	,severity_of_care_problem INT
-	,created_date DATETIME)
+	,created_date DATETIME,
+	is_resolved_here BIT)
 
 	INSERT INTO @ProblemTempTable
 	SELECT
@@ -74,7 +75,8 @@ BEGIN
 	page_source, 
 	related_to_hhc_diag, 
 	severity_of_care_problem,
-	created_date
+	created_date,
+	is_resolved_here
 	FROM dbo.Func_GetAllCarePlanProblemProfileByEpisodeId(@episode_id, NULL,DEFAULT)
 
 	DECLARE @CareGoalTempTable TABLE (
@@ -95,7 +97,8 @@ BEGIN
 	poc_id BIGINT,
 	tcn_id BIGINT,
 	cg_note_id BIGINT,
-	lockTargetDate BIT
+	lockTargetDate BIT,
+	is_resolved_here BIT
 	)
 
 	INSERT INTO @CareGoalTempTable
@@ -117,7 +120,8 @@ BEGIN
 	poc_id,
 	tcn_id,
 	cg_note_id,
-	lockTargetDate
+	lockTargetDate,
+	is_resolved_here
     FROM dbo.Func_GetAllCarePlanCareGoalProfileByEpisodeId(@episode_id, 0, DEFAULT)
 
 
@@ -176,7 +180,8 @@ BEGIN
 	,p.page_source
 	,CAST(p.related_to_hhc_diag AS VARCHAR) related_to_hhc_diag
 	,CAST(p.severity_of_care_problem AS VARCHAR) severity_of_care_problem
-	,CONVERT(VARCHAR, p.created_date, 101) created_date
+	,CONVERT(VARCHAR, p.created_date, 101) created_date,
+	p.is_resolved_here
 	FROM @ProblemTempTable p
 	LEFT JOIN @CareGoalTempTable g ON g.problem_id = p.problem_id
 	LEFT JOIN @InterventionTempTable i ON i.goal_id = g.goal_id
@@ -212,7 +217,8 @@ BEGIN
 	g.poc_id,
 	g.tcn_id,
 	g.cg_note_id,
-	g.lockTargetDate
+	g.lockTargetDate,
+	g.is_resolved_here
 	FROM @CareGoalTempTable g
 	LEFT JOIN @ProblemTempTable p ON g.problem_id = p.problem_id
 	LEFT JOIN @InterventionTempTable i ON i.goal_id = g.goal_id
@@ -249,7 +255,8 @@ BEGIN
 	,i.resolved_by
 	,i.resolved_by_name
 	,CASE WHEN i.resolved_date IS NULL OR i.resolved_date = '0001-01-01' THEN '' ELSE CONVERT(VARCHAR, i.resolved_date, 101) END resolved_date
-	,intcom.comment_total
+	,intcom.comment_total,
+	i.is_resolved_here
 	FROM @InterventionTempTable i
 	CROSS APPLY 
 	( 
