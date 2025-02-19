@@ -1,4 +1,3 @@
-USE [IDOneSourceHomeHealth]
 GO
 
 /****** Object:  UserDefinedFunction [dbo].[Func_GetAllCarePlanCareGoalProfileByEpisodeId]    Script Date: 2/19/2025 9:58:17 AM ******/
@@ -115,7 +114,8 @@ RETURN
   comment_total,
   tcn_id,
   cg_note_id,
-  lockTargetDate
+  lockTargetDate,
+  is_resolved_here
  FROM  
  (  
   SELECT   
@@ -142,7 +142,8 @@ RETURN
    gcom.comment_total,
    goal.tcn_id,
    goal.cg_note_id,
-   CASE WHEN COALESCE(goalsource.goal_id,0) = 0 THEN 0 ELSE (CASE WHEN goal.goal_group_id = goal.goal_id THEN 0 ELSE 1 END)  END  lockTargetDate
+   CASE WHEN COALESCE(goalsource.goal_id,0) = 0 THEN 0 ELSE (CASE WHEN goal.goal_group_id = goal.goal_id THEN 0 ELSE 1 END)  END  lockTargetDate,
+   goal.is_resolved_here
   FROM latestcaregoal goal  
    INNER JOIN CarePlan_Problem prob ON goal.problem_id = prob.problem_id
    CROSS APPLY   

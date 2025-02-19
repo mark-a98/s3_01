@@ -140,7 +140,9 @@ BEGIN
 	,resolved_date DATE
 	,page_source VARCHAR(20)
 	,initiated_by_name NVARCHAR(MAX)
-	,resolved_by_name NVARCHAR(MAX))
+	,resolved_by_name NVARCHAR(MAX)
+	,is_resolved_here BIT
+	)
 
 	INSERT INTO @InterventionTempTable
 	SELECT
@@ -158,7 +160,8 @@ BEGIN
 	,resolved_date
 	,page_source
 	,initiated_by_name
-	,resolved_by_name
+	,resolved_by_name,
+	is_resolved_here
 	FROM dbo.Func_GetAllCarePlanInterventionProfileByEpisodeId(@episode_id, NULL, NULL, NULL, NULL, NULL, 0, DEFAULT)
 
 	DECLARE @no_initiated_date BIT, @no_resolved_date BIT
