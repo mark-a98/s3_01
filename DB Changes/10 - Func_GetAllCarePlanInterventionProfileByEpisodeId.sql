@@ -1,4 +1,3 @@
-USE [IDOneSourceHomeHealth]
 GO
 
 /****** Object:  UserDefinedFunction [dbo].[Func_GetAllCarePlanInterventionProfileByEpisodeId]    Script Date: 2/19/2025 10:06:27 AM ******/
@@ -124,6 +123,7 @@ RETURN
   , rownum  
   , comment_total 
   , goal_desc
+  , is_resolved_here
  FROM  
  (  
   SELECT  
@@ -153,6 +153,7 @@ RETURN
    , row_number() OVER(PARTITION BY intervention_group_id ORDER BY i.updated_date DESC) AS rownum  
    , intcom.comment_total  
    , cg.goal_desc
+   , i.is_resolved_here
   FROM latestintervention i  
    INNER JOIN CarePlan_Goal cg ON i.goal_id = cg.goal_id  
    LEFT JOIN  
