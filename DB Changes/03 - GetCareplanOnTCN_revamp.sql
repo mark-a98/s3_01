@@ -1,4 +1,3 @@
-USE [IDOneSourceHomeHealth]
 GO
 
 /****** Object:  StoredProcedure [dbo].[GetCareplanOnTCN_revamp]    Script Date: 2/19/2025 9:17:07 AM ******/
