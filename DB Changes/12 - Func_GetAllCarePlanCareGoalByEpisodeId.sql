@@ -1,4 +1,3 @@
-USE [IDOneSourceHomeHealth]
 GO
 
 /****** Object:  UserDefinedFunction [dbo].[Func_GetAllCarePlanCareGoalByEpisodeId]    Script Date: 2/19/2025 10:16:25 AM ******/
@@ -61,7 +60,8 @@ RETURN
  goalcom.comment_total,
  goal.cg_note_id,
  goal.tcn_id,
- CASE WHEN COALESCE(goalsource.goal_id,0) = 0 THEN 0 ELSE (CASE WHEN goal.goal_group_id = goal.goal_id THEN 0 ELSE 1 END)  END  lockTargetDate
+ CASE WHEN COALESCE(goalsource.goal_id,0) = 0 THEN 0 ELSE (CASE WHEN goal.goal_group_id = goal.goal_id THEN 0 ELSE 1 END)  END  lockTargetDate,
+ goal.is_resolved_here
  
 
 FROM CarePlan_Goal goal

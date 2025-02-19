@@ -1,4 +1,3 @@
-USE [IDOneSourceHomeHealth]
 GO
 
 /****** Object:  UserDefinedFunction [dbo].[Func_GetAllCarePlanInterventionByEpisodeId]    Script Date: 2/19/2025 10:17:19 AM ******/
@@ -58,7 +57,8 @@ RETURN
  ,ISNULL(i.resolved_by, -1) resolved_by  
  ,cg2.display_name AS resolved_by_name  
  ,CASE WHEN i.resolved_date IS NULL OR i.resolved_date = '01/01/0001' THEN NULL ELSE CONVERT(VARCHAR, i.resolved_date, 101) END resolved_date  
- ,intcom.comment_total  
+ ,intcom.comment_total
+ ,i.is_resolved_here  
  FROM CarePlan_Intervention i  
  LEFT JOIN(  
   SELECT c1.Caregiver_Id, c1.last_name + ', ' + c1.first_name + coalesce('' + c1.middle_initial, '') + coalesce(' ' + coalesce(rtrim(c1.title), rtrim(cgt1.caregivertype_code)), '') as name,  

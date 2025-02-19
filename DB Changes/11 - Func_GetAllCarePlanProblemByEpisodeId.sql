@@ -1,4 +1,3 @@
-USE [IDOneSourceHomeHealth]
 GO
 
 /****** Object:  UserDefinedFunction [dbo].[Func_GetAllCarePlanProblemByEpisodeId]    Script Date: 2/19/2025 10:14:54 AM ******/
@@ -48,6 +47,7 @@ RETURN
 	,prob.poc_id 
 	,ISNULL(body.bodysystem_template_desc, 'None') AS bodysystem_desc
 	,CONVERT(VARCHAR, prob.created_date, 101) created_date
+	,prob.is_resolved_here
 	FROM CarePlan_Problem prob
 	INNER JOIN CarePlan_BodySystem_Template body ON prob.bodysystem_id = body.bodysystem_id 
 	AND ISNULL(body.is_Deleted, 0) = 0
