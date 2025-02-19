@@ -1,4 +1,3 @@
-USE [IDOneSourceHomeHealth]
 GO
 
 /****** Object:  StoredProcedure [dbo].[GetCarePlanProfileDetailsForCareplanOasis_revamp]    Script Date: 2/19/2025 9:19:07 AM ******/
@@ -57,7 +56,8 @@ BEGIN
 	,prob.oasis_id
 	,prob.poc_id 
 	,ISNULL(body.bodysystem_template_desc, 'None') AS bodysystem_desc
-	,CONVERT(VARCHAR, prob.created_date, 101) created_date 
+	,CONVERT(VARCHAR, prob.created_date, 101) created_date
+	,prob.is_resolved_here 
 	FROM CarePlan_Problem prob
 	LEFT JOIN CarePlan_BodySystem_Template body ON prob.bodysystem_id = body.bodysystem_id 
 	AND ISNULL(body.is_Deleted, 0) = 0
@@ -92,7 +92,8 @@ BEGIN
 	gcom.comment_total,
 	goal.tcn_id,
 	goal.cg_note_id,
-	CASE WHEN COALESCE(goalsource.goal_id,0) = 0 THEN 0 ELSE (CASE WHEN goal.goal_group_id = goal.goal_id THEN 0 ELSE 1 END)  END  lockTargetDate
+	CASE WHEN COALESCE(goalsource.goal_id,0) = 0 THEN 0 ELSE (CASE WHEN goal.goal_group_id = goal.goal_id THEN 0 ELSE 1 END)  END  lockTargetDate,
+	goal.is_resolved_here
 	FROM CarePlan_Goal goal
 	CROSS APPLY 
    ( 
@@ -134,6 +135,7 @@ BEGIN
 	,cg2.display_name AS resolved_by_name
 	,CASE WHEN i.resolved_date IS NULL OR i.resolved_date = '01/01/0001' THEN NULL ELSE CONVERT(VARCHAR, i.resolved_date, 101) END resolved_date
 	,intcom.comment_total
+	,i.is_resolved_here
 	FROM CarePlan_Intervention i
 	LEFT JOIN(
 		SELECT c1.Caregiver_Id, c1.last_name + ', ' + c1.first_name + coalesce('' + c1.middle_initial, '') + coalesce(' ' + coalesce(rtrim(c1.title), rtrim(cgt1.caregivertype_code)), '') as name,

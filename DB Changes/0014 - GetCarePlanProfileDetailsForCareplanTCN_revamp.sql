@@ -1,4 +1,3 @@
-USE [IDOneSourceHomeHealth]
 GO
 
 /****** Object:  StoredProcedure [dbo].[GetCarePlanProfileDetailsForCareplanTCN_revamp]    Script Date: 2/19/2025 10:26:50 AM ******/
@@ -71,7 +70,9 @@ BEGIN
  ,page_source VARCHAR(50)    
  ,related_to_hhc_diag INT    
  ,severity_of_care_problem INT    
- ,created_date DATETIME)    
+ ,created_date DATETIME
+ ,is_resolved_here BIT
+ )    
     
  INSERT INTO @ProblemTempTable    
  SELECT    
@@ -86,7 +87,8 @@ BEGIN
  page_source,     
  related_to_hhc_diag,     
  severity_of_care_problem,    
- created_date    
+ created_date,
+ is_resolved_here    
  FROM dbo.Func_GetAllCarePlanProblemProfileByEpisodeId(@episode_id, NULL,@cg_note_id)    
     
  DECLARE @CareGoalTempTable TABLE (    
@@ -107,7 +109,8 @@ BEGIN
  poc_id BIGINT,
  tcn_id BIGINT,
  cg_note_id BIGINT,
- lockTargetDate BIT
+ lockTargetDate BIT,
+ is_resolved_here BIT
  
  
  )    
@@ -131,7 +134,8 @@ BEGIN
  poc_id,
  tcn_id,
  cg_note_id,
- lockTargetDate
+ lockTargetDate,
+ is_resolved_here
     FROM dbo.Func_GetAllCarePlanCareGoalProfileByEpisodeId(@episode_id, 0,@cg_note_id)    
     
     
@@ -150,7 +154,9 @@ BEGIN
  ,resolved_date DATE    
  ,page_source VARCHAR(20)    
  ,initiated_by_name NVARCHAR(MAX)    
- ,resolved_by_name NVARCHAR(MAX))    
+ ,resolved_by_name NVARCHAR(MAX)
+ ,is_resolved_here BIT
+ )    
     
  INSERT INTO @InterventionTempTable    
  SELECT    
@@ -168,7 +174,8 @@ BEGIN
  ,resolved_date    
  ,page_source    
  ,initiated_by_name    
- ,resolved_by_name    
+ ,resolved_by_name
+ ,is_resolved_here    
  FROM dbo.Func_GetAllCarePlanInterventionProfileByEpisodeId(@episode_id, NULL, NULL, NULL, NULL, NULL, 0, @cg_note_id)    
     
  DECLARE @no_initiated_date BIT, @no_resolved_date BIT    
@@ -191,7 +198,8 @@ BEGIN
  ,CAST(p.related_to_hhc_diag AS VARCHAR) related_to_hhc_diag    
  ,CAST(p.severity_of_care_problem AS VARCHAR) severity_of_care_problem    
  ,CONVERT(VARCHAR, p.created_date, 101) created_date
- ,@cgNoteHasCarePlan as cgNoteHasCarePlan
+ ,@cgNoteHasCarePlan as cgNoteHasCarePlan,
+ p.is_resolved_here
  FROM @ProblemTempTable p    
  LEFT JOIN @CareGoalTempTable g ON g.problem_id = p.problem_id    
  LEFT JOIN @InterventionTempTable i ON i.goal_id = g.goal_id    
@@ -228,7 +236,8 @@ BEGIN
  g.poc_id,
  g.tcn_id,
  g.cg_note_id,
- g.lockTargetDate
+ g.lockTargetDate,
+ g.is_resolved_here
  FROM @CareGoalTempTable g    
  LEFT JOIN @ProblemTempTable p ON g.problem_id = p.problem_id    
  LEFT JOIN @InterventionTempTable i ON i.goal_id = g.goal_id
@@ -284,7 +293,8 @@ BEGIN
  ,i.resolved_by_name    
  ,CASE WHEN i.resolved_date IS NULL OR i.resolved_date = '0001-01-01' THEN '' ELSE CONVERT(VARCHAR, i.resolved_date, 101) END resolved_date    
  ,intcom.comment_total
- ,@cgNoteHasCarePlan as cgNoteHasCarePlan
+ ,@cgNoteHasCarePlan as cgNoteHasCarePlan,
+ i.is_resolved_here
  FROM @InterventionTempTable i    
  CROSS APPLY     
  (     
