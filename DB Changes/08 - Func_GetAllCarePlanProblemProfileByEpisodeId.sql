@@ -1,4 +1,3 @@
-USE [IDOneSourceHomeHealth]
 GO
 
 /****** Object:  UserDefinedFunction [dbo].[Func_GetAllCarePlanProblemProfileByEpisodeId]    Script Date: 2/19/2025 9:50:32 AM ******/
@@ -101,7 +100,8 @@ RETURN
   , oasis_id      
   , poc_id       
   , bodysystem_desc      
-  , created_date  
+  , created_date
+  , is_resolved_here  
  FROM      
  (      
   SELECT       
@@ -123,7 +123,8 @@ RETURN
    , prob.poc_id       
    , CONVERT(VARCHAR, prob.created_date, 101) created_date      
    , ISNULL(body.bodysystem_template_desc, 'None') AS bodysystem_desc      
-   , row_number() OVER(PARTITION BY problem_group_id ORDER BY prob.updated_date DESC) AS rownum      
+   , row_number() OVER(PARTITION BY problem_group_id ORDER BY prob.updated_date DESC) AS rownum
+   , prob.is_resolved_here      
   FROM       
    latestprodlem prob      
    LEFT JOIN CarePlan_BodySystem_Template body ON prob.bodysystem_id = body.bodysystem_id       
