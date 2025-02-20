@@ -3837,8 +3837,8 @@ BEGIN
 			goal_outcome  = @in_goal_outcome,  
 			initiated_by  = @in_initiated_by,  
 			initiated_date  = @in_initiated_date,  
-			resolved_by  = @in_resolved_by,  
-			resolved_date  = @in_resolved_date,  
+			resolved_by  = CASE WHEN (ISNULL(resolved_by, -1) NOT IN (0, -1) AND ISNULL(resolved_date, '') NOT IN ('','0001-01-01')) THEN resolved_by ELSE @in_resolved_by END,  
+			resolved_date  = CASE WHEN (ISNULL(resolved_by, -1) NOT IN (0, -1) AND ISNULL(resolved_date, '') NOT IN ('','0001-01-01')) THEN resolved_date ELSE @in_resolved_date END,  
 			updated_date = GETDATE(),  
 			updated_by = @user_id  
 			WHERE intervention_group_id = @in_intervention_group_id
