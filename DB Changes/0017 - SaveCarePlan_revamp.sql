@@ -2666,7 +2666,7 @@ END
 			goal_desc = @cg_goal_desc,  
 			target_date = @cg_target_date,  
 			goal_setfor = @cg_goal_setfor,  
-			resolution_date = CASE WHEN ISNULL(resolution_date,'') NOT IN ('','0001-01-01') THEN resolution_date ELSE @cg_resolution_date END,  
+			resolution_date = CASE WHEN ISNULL(@cg_resolution_date,'') NOT IN ('','0001-01-01') THEN @cg_resolution_date ELSE CASE WHEN ISNULL(resolution_date,'') NOT IN ('','0001-01-01') THEN resolution_date ELSE @cg_resolution_date END END,  
 			comment = @cg_comment,  
 			updated_date = GETDATE(),  
 			updated_by = @user_id
@@ -3837,8 +3837,8 @@ BEGIN
 			goal_outcome  = @in_goal_outcome,  
 			initiated_by  = @in_initiated_by,  
 			initiated_date  = @in_initiated_date,  
-			resolved_by  = CASE WHEN (ISNULL(resolved_by, -1) NOT IN (0, -1) AND ISNULL(resolved_date, '') NOT IN ('','0001-01-01')) THEN resolved_by ELSE @in_resolved_by END,  
-			resolved_date  = CASE WHEN (ISNULL(resolved_by, -1) NOT IN (0, -1) AND ISNULL(resolved_date, '') NOT IN ('','0001-01-01')) THEN resolved_date ELSE @in_resolved_date END,  
+			resolved_by  = CASE WHEN (ISNULL(@in_resolved_by, -1) NOT IN (0, -1) AND ISNULL(@in_resolved_date, '') NOT IN ('','0001-01-01')) THEN @in_resolved_by ELSE CASE WHEN (ISNULL(resolved_by, -1) NOT IN (0, -1) AND ISNULL(resolved_date, '') NOT IN ('','0001-01-01')) THEN resolved_by ELSE @in_resolved_by END END,  
+			resolved_date  = CASE WHEN (ISNULL(@in_resolved_by, -1) NOT IN (0, -1) AND ISNULL(@in_resolved_date, '') NOT IN ('','0001-01-01')) THEN @in_resolved_date ELSE CASE WHEN (ISNULL(resolved_by, -1) NOT IN (0, -1) AND ISNULL(resolved_date, '') NOT IN ('','0001-01-01')) THEN resolved_date ELSE @in_resolved_date END END,  
 			updated_date = GETDATE(),  
 			updated_by = @user_id  
 			WHERE intervention_group_id = @in_intervention_group_id
